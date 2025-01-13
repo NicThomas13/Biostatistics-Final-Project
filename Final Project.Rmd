@@ -1,0 +1,206 @@
+---
+title: "Final Project"
+author: "Nicolas Thomas"
+date: "2024-11-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#Data
+projectdata <- read.csv(file = "C:\\Users\\Nicol\\OneDrive\\Desktop\\UCF\\STA4173 Biostatistics\\diabetes_dataset00.csv")
+projectdata
+
+unique(projectdata$Target)
+```
+
+```{r}
+library(ggplot2)
+
+#Abbreviating Target options
+projectdata$Target_abbr <- abbreviate(projectdata$Target)
+
+# Create the boxplot with color and abbreviated x-axis labels
+ggplot(projectdata, aes(x = factor(Target_abbr), y = BMI, fill = factor(Target_abbr))) +  geom_boxplot() +  scale_fill_manual(values = c("skyblue", "salmon", "lightgreen", "azure", "bisque", "cadetblue", "cadetblue1", "coral4", "lightcoral", "coral", "aquamarine", "magenta", "darkmagenta")) +  xlab("Diabetes Type") +  ylab("BMI") +  ggtitle("BMI by Diabetes Type") +  theme_minimal() +  theme(legend.position = "none")
+```
+
+```{r}
+#Histograms
+hist(projectdata$Insulin.Levels)
+hist(projectdata$Age)
+hist(projectdata$BMI)
+hist(projectdata$Blood.Pressure)
+hist(projectdata$Cholesterol.Levels)
+hist(projectdata$Waist.Circumference)
+hist(projectdata$Blood.Glucose.Levels)
+hist(projectdata$Weight.Gain.During.Pregnancy)
+hist(projectdata$Pancreatic.Health)
+hist(projectdata$Pulmonary.Function)
+hist(projectdata$Neurological.Assessments)
+hist(projectdata$Digestive.Enzyme.Levels)
+hist(projectdata$Birth.Weight)
+```
+
+```{r}
+# ANOVA
+anova_BMI <- aov(BMI ~ Target, data = projectdata)
+summary(anova_BMI)
+
+#Linear Model
+modelBMI <- lm(BMI ~ Target, data = projectdata)
+summary(modelBMI)
+
+library(nnet)
+
+# Multinomial logistic regression
+multinom_BMI <- multinom(Target ~ BMI, data = projectdata)
+summary(multinom_BMI)
+```
+
+```{r}
+library(dplyr)
+# filter type 2 diabetes
+type2 <- projectdata %>% filter(Target == "Type 2 Diabetes")
+head(type2)
+
+# BMI categories
+projectdata$BMI.Category <- cut(projectdata$BMI,breaks = c(-Inf, 18.5, 24.9, 29.9, Inf),labels = c("Underweight", "Normal", "Overweight", "Obese"))
+
+type2$BMI.Category <- cut(type2$BMI,breaks = c(-Inf, 18.5, 24.9, 29.9, Inf),labels = c("Underweight", "Normal", "Overweight", "Obese"))
+
+# BMI category distribution of all types of diabetes 
+ggplot(projectdata, aes(x = BMI.Category)) + geom_bar(fill = "skyblue", color = "black") + theme_minimal() + labs(title = "Distribution of BMI Categories of All Types",x = "BMI Category", y = "Count")
+
+# BMI category distribution among type 2 diabetes patients
+ggplot(type2, aes(x = BMI.Category)) + geom_bar(fill = "blue", color = "black") + theme_minimal() + labs(title = "Distribution of BMI Categories in Type 2 Diabetes Patients",x = "BMI Category", y = "Count")
+
+# boxplot of insulin levels across BMI catgegories of all types
+ggplot(projectdata, aes(x = BMI.Category, y = Insulin.Levels)) + geom_boxplot(fill = "lightcoral") + theme_minimal() + labs(title = "Insulin Levels Across BMI Categories",x = "BMI Category", y = "Insulin Levels")
+
+
+# blood glucose levels across BMI categories of all types
+ggplot(projectdata, aes(x = BMI.Category, y = Blood.Glucose.Levels)) +geom_boxplot(fill = "darkred") +labs(title = "Blood Glucose Levels Across BMI Categories",x = "BMI Category", y = "Blood Glucose Levels")
+
+# blood pressure across BMI categories of all types
+ggplot(projectdata, aes(x = BMI.Category, y = Blood.Pressure)) +geom_boxplot(fill = "darkmagenta") +labs(title = "Blood Pressure Across BMI Categories",x = "BMI Category", y = "Blood Pressure")
+```
+
+```{r}
+eachtype <- table(projectdata$Target)
+print(eachtype)
+
+# Type2
+type2_data <- subset(projectdata, Target == "Type 2 Diabetes")
+type2_data
+
+# Binary
+type2_data$Obese <- ifelse(type2_data$BMI >= 30, 1, 0)
+type2_data
+
+# Percent obese
+table_obesity_type2 <- table(type2_data$Obese)
+prop_obese_type2 <- prop.table(table_obesity_type2)
+
+print(prop_obese_type2)
+
+# Comparing
+overall_obesity_rate <- mean(projectdata$BMI >= 30)
+print(overall_obesity_rate)
+
+chisq_test_type2 <- chisq.test(table_obesity_type2)
+print(chisq_test_type2)
+```
+
+```{r}
+colnames(projectdata)
+library(dplyr)
+
+# Adding Binary
+projectdata$Target <- ifelse(projectdata$Target == "Type 2 Diabetes", 1, 0)
+# Making Factor
+projectdata$Target <- as.factor(projectdata$Target)
+
+projectdata
+
+# Fit logistic regression model
+model <- glm(Target ~ BMI, data = projectdata, family = binomial)
+
+par(mfrow = c(2, 2))
+plot(model)
+
+summary(model)
+projectdata
+exp(coef(model))
+
+
+# Predicted probabilities
+projectdata$predicted_prob <- predict(model, type = "response")
+projectdata
+
+# Fit logistic regression with multiple predictors
+modelOR <- glm(Target ~ Genetic.Markers + Autoantibodies + Family.History + Environmental.Factors + Insulin.Levels+Age+BMI+Physical.Activity+Dietary.Habits+Blood.Pressure+Cholesterol.Levels+Waist.Circumference+Blood.Glucose.Levels+Ethnicity+Socioeconomic.Factors+Smoking.Status+Alcohol.Consumption+Glucose.Tolerance.Test+History.of.PCOS+Previous.Gestational.Diabetes+Pregnancy.History+Weight.Gain.During.Pregnancy+Pancreatic.Health+Pulmonary.Function+Cystic.Fibrosis.Diagnosis+Steroid.Use.History+Genetic.Testing+Neurological.Assessments+Liver.Function.Tests+Digestive.Enzyme.Levels+Urine.Test+Birth.Weight+Early.Onset.Symptoms, data = projectdata, family = binomial)
+
+# Summary of the model
+summary(modelOR)
+
+# Calculate Odds Ratios
+odds_ratios <- exp(coef(modelOR))
+print(odds_ratios)
+
+# Summary of the model
+summary(modelOR)
+
+# Calculate Odds Ratios
+odds_ratios <- exp(coef(modelOR))
+
+odds_ratio_table <- data.frame(Variable = names(odds_ratios),OddsRatio = odds_ratios)
+
+# Sort the odds ratio table by OddsRatio in descending order
+sorted_odds_ratio_table <- odds_ratio_table[order(-odds_ratio_table$OddsRatio), ]
+
+# Print the sorted table
+print(sorted_odds_ratio_table)
+
+modelTarBMI <- lm(BMI ~ Target, data = projectdata)
+
+par(mfrow = c(2, 2))
+plot(modelTarBMI)
+
+# Assess model fit
+library(pROC)
+roc_curve <- roc(projectdata$Target, projectdata$predicted_prob)
+plot(roc_curve)
+auc(roc_curve)
+
+# Filter BMI values between 26 and 38
+filtered_data <- subset(projectdata, BMI >= 26 & BMI <= 38)
+
+# Create a histogram
+hist(filtered_data$BMI, breaks = 12, col = "skyblue", main = "Histogram of BMI (26 to 38)", xlab = "BMI", xlim = c(26, 38), border = "white")
+filtered_data
+```
+
+```{r}
+
+summary(filtered_data$BMI)
+# Filter dataset for individuals with Type 2 Diabetes
+type2_data <- subset(projectdata, Target == "Type 2 Diabetes")  # Adjust "Type 2 Diabetes" to match your dataset
+
+# Filter BMI values between 26 and 38
+filtered_data <- subset(type2_data, BMI >= 26 & BMI <= 38)
+
+type2_data
+
+# Create a histogram
+hist(filtered_data$BMI)
+
+# Filter BMI values between 26 and 38
+filtered_dataTEST <- subset(projectdata, BMI >= 26 & BMI <= 38)
+type2_data
+
+# Create a histogram
+hist(filtered_dataTEST$BMI)
+```
